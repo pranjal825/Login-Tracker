@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>My Work Tracker</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--tx:#1b1f24;--mu:#6a7280;--bd:#e3e6eb;--ac:#2f6fed;--pos:#16854a;--neg:#c93434;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14161a;--card:#1d2026;--tx:#eceef2;--mu:#98a0ad;--bd:#2d3139;--ac:#6b9bff;--pos:#4cd07f;--neg:#ff7070;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#14161a;--card:#1d2026;--tx:#eceef2;--mu:#98a0ad;--bd:#2d3139;--ac:#6b9bff;--pos:#4cd07f;--neg:#ff7070;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:720px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0 2px}h2{font-size:15px;margin:0 0 10px;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.sub{color:var(--mu);margin:0 0 14px;font-size:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.big{font-size:34px;font-weight:700;letter-spacing:-.02em}
+.pos{color:var(--pos)}.neg{color:var(--neg)}.mu{color:var(--mu);font-size:13px}
+button{font:inherit;border:0;border-radius:10px;padding:12px 14px;background:var(--ac);color:#fff;font-weight:600;cursor:pointer}
+button.sec{background:transparent;color:var(--ac);border:1px solid var(--bd)}
+button.sm{padding:6px 10px;font-size:13px}
+button:disabled{opacity:.4;cursor:default}
+input,select{font:inherit;padding:10px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);width:100%;min-width:0}
+label{font-size:13px;color:var(--mu);display:block;margin-bottom:4px}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1 1 130px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--bd);white-space:nowrap}
+th{color:var(--mu);font-weight:600;font-size:12px}
+.stat{display:flex;justify-content:space-between;padding:5px 0;font-size:15px}
+</style>
+</head>
+<body>
+<main>
+<h1>My Work Tracker</h1>
+<p class="sub" id="dateLine"></p>
+
+<div class="card">
+  <div class="grid">
+    <div><div class="mu">Today’s balance</div><div class="big" id="todayBal">–</div></div>
+    <div><div class="mu">Saved balance</div><div class="big" id="saved">–</div></div>
+  </div>
+  <div class="grid" style="margin-top:12px">
+    <div><div class="mu">Login</div><div id="tin" style="font-size:20px;font-weight:600">–</div></div>
+    <div><div class="mu">Logout</div><div id="tout" style="font-size:20px;font-weight:600">–</div></div>
+  </div>
+  <div class="mu" id="worked" style="margin-top:8px"></div>
+  <div class="row" style="margin-top:12px">
+    <button id="bin">Login</button>
+    <button id="bout" class="sec">Logout</button>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card"><h2>This week</h2><div id="wk"></div></div>
+  <div class="card"><h2>This month</h2><div id="mo"></div></div>
+</div>
+
+<div class="card">
+  <h2>Add or edit a day</h2>
+  <div class="row">
+    <div><label>Date</label><input type="date" id="fd"></div>
+    <div><label>Login</label><input type="time" id="fi" value="09:00"></div>
+    <div><label>Logout</label><input type="time" id="fo" value="19:00"></div>
+  </div>
+  <button style="margin-top:10px" id="fs">Save day</button>
+</div>
+
+<div class="card">
+  <h2>Leave adjustment</h2>
+  <div class="row">
+    <div><label>Date</label><input type="date" id="ld"></div>
+    <div><label>Type</label><select id="lt"><option value="full">Full day</option><option value="half">Half day</option><option value="custom">Custom minutes</option></select></div>
+    <div><label>Minutes (custom)</label><input type="number" id="lm" min="1" value="60"></div>
+  </div>
+  <div style="margin-top:10px"><label>Note (optional)</label><input id="ln" placeholder="e.g. Casual leave"></div>
+  <button style="margin-top:10px" id="ls">Deduct leave</button>
+</div>
+
+<div class="card">
+  <h2>Settings</h2>
+  <div class="row">
+    <div><label>Daily target (minutes)</label><input type="number" id="st" min="1"></div>
+    <div><label>Opening balance (minutes, ± )</label><input type="number" id="so"></div>
+  </div>
+  <p class="mu">Default target is 9h 06m (546 min). The 9:00 AM–7:00 PM schedule gives +54 min per full day.</p>
+  <div class="row"><button class="sec" id="sv">Save settings</button><button class="sec" id="ex">Export CSV (selected month)</button></div>
+  <div class="row" style="margin-top:10px"><button class="sec" id="bk">Backup all data (JSON)</button><button class="sec" id="rb">Restore backup</button><button class="sec" id="rs" style="color:var(--neg)">Reset all</button></div>
+  <input type="file" id="rf" accept=".json,application/json" hidden>
+</div>
+
+<div class="card">
+  <h2>Monthly records</h2>
+  <label>Month</label>
+  <select id="mf"></select>
+  <div id="msum" style="margin:10px 0"></div>
+  <div class="scroll"><table><thead><tr><th>Month</th><th>Extra</th><th>Deficit</th><th>Leave</th><th>Net</th><th>Balance</th></tr></thead><tbody id="mtab"></tbody></table></div>
+  <p class="mu">Every month is kept permanently. “Balance” is the running total at the end of that month.</p>
+</div>
+
+<div class="card">
+  <h2>Daily history</h2>
+  <div class="scroll"><table><thead><tr><th>Date</th><th>In</th><th>Out</th><th>Worked</th><th>+/−</th><th></th></tr></thead><tbody id="hist"></tbody></table></div>
+  <p class="mu">Records are stored in this browser only. Export a CSV regularly as a backup.</p>
+</div>
+</main>
+<script>
+var KEY="workTracker.v1",D={days:{},leaves:[],target:546,opening:0};
+try{var s=localStorage.getItem(KEY);if(s){var p=JSON.parse(s);if(p&&p.days)D=Object.assign(D,p)}}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}}
+function $(i){return document.getElementById(i)}
+function pad(n){return (n<10?"0":"")+n}
+function iso(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function hm(d){return pad(d.getHours())+":"+pad(d.getMinutes())}
+function mins(t){var a=t.split(":");return +a[0]*60+ +a[1]}
+function fmt(m,sign){var n=m<0,a=Math.abs(Math.round(m));var t=Math.floor(a/60)+"h "+pad(a%60)+"m";return sign?((n?"−":"+")+t):t}
+function cls(m){return m>0?"pos":m<0?"neg":""}
+function t12(t){if(!t)return "–";var a=t.split(":"),h=+a[0];return ((h+11)%12+1)+":"+a[1]+" "+(h<12?"AM":"PM")}
+function diff(r){return (r&&r.in&&r.out)?mins(r.out)-mins(r.in)-D.target:null}
+function leaveOn(d){return D.leaves.filter(function(l){return l.date===d}).reduce(function(a,l){return a+l.min},0)}
+function total(){var t=+D.opening||0;for(var k in D.days){var x=diff(D.days[k]);if(x!==null)t+=x}D.leaves.forEach(function(l){t-=l.min});return t}
+function range(from,to){var e=0,d=0,l=0;for(var k in D.days){if(k>=from&&k<=to){var x=diff(D.days[k]);if(x!==null){x>0?e+=x:d+=x}}}D.leaves.forEach(function(v){if(v.date>=from&&v.date<=to)l+=v.min});return {e:e,d:d,l:l,n:e+d-l}}
+function stats(r){return '<div class="stat"><span>Extra</span><b class="pos">'+fmt(r.e)+'</b></div><div class="stat"><span>Deficit</span><b class="neg">'+fmt(-r.d)+'</b></div><div class="stat"><span>Leave</span><b>'+fmt(r.l)+'</b></div><div class="stat"><span>Net</span><b class="'+cls(r.n)+'">'+fmt(r.n,1)+'</b></div>'}
+function render(){
+  var now=new Date(),td=iso(now),r=D.days[td]||{};
+  $("dateLine").textContent=now.toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long",year:"numeric"})+" · Target "+fmt(D.target);
+  $("tin").textContent=t12(r.in);$("tout").textContent=t12(r.out);
+  $("bin").disabled=!!r.in;$("bout").disabled=!r.in||!!r.out;
+  var tb=$("todayBal"),w=$("worked");
+  if(r.in){var o=r.out?mins(r.out):now.getHours()*60+now.getMinutes();var wk=o-mins(r.in),x=wk-D.target;tb.textContent=fmt(x,1);tb.className="big "+cls(x);w.textContent="Worked "+fmt(wk)+(r.out?"":" so far (live)")}
+  else{tb.textContent="–";tb.className="big";w.textContent="Not logged in yet"}
+  var t=total();$("saved").textContent=fmt(t,1);$("saved").className="big "+cls(t);
+  var dow=(now.getDay()+6)%7,mon=new Date(now);mon.setDate(now.getDate()-dow);var sun=new Date(mon);sun.setDate(mon.getDate()+6);
+  $("wk").innerHTML=stats(range(iso(mon),iso(sun)));
+  var ms=now.getFullYear()+"-"+pad(now.getMonth()+1);$("mo").innerHTML=stats(range(ms+"-01",ms+"-31"));
+  var keys={};for(var k in D.days)keys[k]=1;D.leaves.forEach(function(l){keys[l.date]=1});
+  var months={};Object.keys(keys).forEach(function(k){months[k.slice(0,7)]=1});months[ms]=1;
+  var sel=$("mf"),cur=sel.value||ms;
+  sel.innerHTML='<option value="all">All months</option>'+Object.keys(months).sort().reverse().map(function(m){return '<option value="'+m+'">'+m+'</option>'}).join("");
+  sel.value=(cur==="all"||months[cur])?cur:ms;
+  var f=sel.value;
+  $("msum").innerHTML=f==="all"?stats(range("0000-01-01","9999-12-31")):stats(range(f+"-01",f+"-31"));
+  var run=+D.opening||0,mh="";
+  Object.keys(months).sort().forEach(function(m){var r=range(m+"-01",m+"-31");run+=r.n;mh="<tr><td>"+m+"</td><td class='pos'>"+fmt(r.e)+"</td><td class='neg'>"+fmt(-r.d)+"</td><td>"+fmt(r.l)+"</td><td class='"+cls(r.n)+"'>"+fmt(r.n,1)+"</td><td class='"+cls(run)+"'>"+fmt(run,1)+"</td></tr>"+mh});
+  $("mtab").innerHTML=mh;
+  var list=Object.keys(keys).filter(function(k){return f==="all"||k.slice(0,7)===f}).sort().reverse(),h="";
+  list.forEach(function(k){var r=D.days[k]||{},x=diff(r),l=leaveOn(k);
+    h+="<tr><td>"+k+"</td><td>"+t12(r.in)+"</td><td>"+t12(r.out)+"</td><td>"+(x===null?"–":fmt(x+D.target))+"</td><td class='"+(x===null?"":cls(x))+"'>"+(x===null?"–":fmt(x,1))+(l?" <span class='neg'>(leave "+fmt(l)+")</span>":"")+"</td><td>"+(r.in?"<button class='sec sm' data-e='"+k+"'>Edit</button> ":"")+"<button class='sec sm' data-d='"+k+"'>Delete</button></td></tr>"});
+  $("hist").innerHTML=h||"<tr><td colspan='6' class='mu'>No records yet.</td></tr>";
+}
+$("bin").onclick=function(){var n=new Date(),k=iso(n);D.days[k]={in:hm(n),out:null};save();render()};
+$("bout").onclick=function(){var n=new Date(),k=iso(n);if(D.days[k]){D.days[k].out=hm(n);save();render()}};
+$("fs").onclick=function(){var d=$("fd").value,i=$("fi").value,o=$("fo").value;if(!d||!i||!o){alert("Please fill date, login and logout.");return}if(mins(o)<=mins(i)){alert("Logout must be after login.");return}D.days[d]={in:i,out:o};save();render()};
+$("ls").onclick=function(){var d=$("ld").value,t=$("lt").value,m=t==="full"?D.target:t==="half"?Math.round(D.target/2):+$("lm").value;if(!d||!(m>0)){alert("Pick a date and a valid amount.");return}D.leaves.push({id:Date.now(),date:d,min:m,note:$("ln").value});save();render()};
+$("sv").onclick=function(){var t=+$("st").value;if(!(t>0)){alert("Target must be positive.");return}D.target=t;D.opening=+$("so").value||0;save();render()};
+$("hist").onclick=function(e){var b=e.target;if(b.dataset.e){var r=D.days[b.dataset.e];$("fd").value=b.dataset.e;$("fi").value=r.in;$("fo").value=r.out||"19:00";$("fd").scrollIntoView({behavior:"smooth"})}
+  if(b.dataset.d){var k=b.dataset.d;if(confirm("Delete the record and leave entries for "+k+"?")){delete D.days[k];D.leaves=D.leaves.filter(function(l){return l.date!==k});save();render()}}};
+$("ex").onclick=function(){var rows=[["Date","Login","Logout","Worked (min)","Plus/Minus (min)","Leave (min)"]];var keys={};for(var k in D.days)keys[k]=1;D.leaves.forEach(function(l){keys[l.date]=1});Object.keys(keys).filter(function(k){var f=$("mf").value;return f==="all"||k.slice(0,7)===f}).sort().forEach(function(k){var r=D.days[k]||{},x=diff(r);rows.push([k,r.in||"",r.out||"",x===null?"":x+D.target,x===null?"":x,leaveOn(k)||""])});
+  var csv=rows.map(function(r){return r.join(",")}).join("\n");saveFile("work-tracker-"+$("mf").value+".csv",csv)};
+$("rs").onclick=function(){if(confirm("Erase ALL records? Export a CSV first if you need a backup.")){D={days:{},leaves:[],target:546,opening:0};save();render()}};
+var DL=null;try{claude.use("downloads").then(function(d){DL=d},function(){})}catch(e){}
+function saveFile(name,text){var type=name.slice(-3)==="csv"?"text/csv":"application/json";
+ if(DL){DL.save({filename:name,data:new Blob([text],{type:type})}).catch(function(e){if(!e||e.code!=="declined")alert("Could not save the file.")});return}
+ var a=document.createElement("a");a.href="data:"+type+";charset=utf-8,"+encodeURIComponent(text);a.download=name;document.body.appendChild(a);a.click();a.remove()}
+$("bk").onclick=function(){saveFile("work-tracker-backup-"+iso(new Date())+".json",JSON.stringify(D,null,1))};
+$("rb").onclick=function(){$("rf").click()};
+$("rf").onchange=function(e){var fl=e.target.files[0];if(!fl)return;var rd=new FileReader();rd.onload=function(){try{var p=JSON.parse(rd.result);if(!p.days)throw 0;if(confirm("Replace current data with this backup?")){D=Object.assign({days:{},leaves:[],target:546,opening:0},p);save();$("st").value=D.target;$("so").value=D.opening;render()}}catch(x){alert("Not a valid backup file.")}};rd.readAsText(fl);e.target.value=""};
+$("mf").onchange=render;
+$("st").value=D.target;$("so").value=D.opening;$("fd").value=iso(new Date());$("ld").value=iso(new Date());
+render();setInterval(render,30000);
+</script>
+</body>
+</html>
