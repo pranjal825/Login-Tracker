@@ -54,20 +54,28 @@ th{color:var(--mu);font-weight:600;font-size:12px}
   </div>
 </div>
 
-<div class="grid">
-  <div class="card"><h2>This week</h2><div id="wk"></div></div>
-  <div class="card"><h2>This month</h2><div id="mo"></div></div>
+<div class="card">
+  <h2>Overall extra time</h2>
+  <div class="mu">Extra time left after all days, late arrivals and leave</div>
+  <div class="big" id="ov">–</div>
+  <div id="ovl" style="margin-top:8px"></div>
 </div>
 
 <div class="card">
-  <h2>Add or edit a day</h2>
+  <h2>Previous days: add or edit</h2>
+  <p class="mu" style="margin:0 0 10px">You can add or fix any earlier date here while you stay logged in today. Today’s login is not affected.</p>
   <div class="row">
     <div><label>Date</label><input type="date" id="fd"></div>
     <div><label>Login</label><input type="time" id="fi" value="09:00"></div>
-    <div><label>Logout</label><input type="time" id="fo" value="19:00"></div>
+    <div><label>Logout (empty if unknown)</label><input type="time" id="fo" value="19:00"></div>
   </div>
   <button style="margin-top:10px" id="fs">Save day</button>
   <p class="mu" id="fmsg" style="margin-top:8px"></p>
+</div>
+
+<div class="grid">
+  <div class="card"><h2>This week</h2><div id="wk"></div></div>
+  <div class="card"><h2>This month</h2><div id="mo"></div></div>
 </div>
 
 <div class="card">
@@ -107,7 +115,7 @@ th{color:var(--mu);font-weight:600;font-size:12px}
 
 <div class="card">
   <h2>Daily history</h2>
-  <div class="scroll"><table><thead><tr><th>Date</th><th>In</th><th>Out</th><th>Late</th><th>Early</th><th>Worked</th><th>+/−</th><th></th></tr></thead><tbody id="hist"></tbody></table></div>
+  <div class="scroll"><table><thead><tr><th>Date</th><th>In</th><th>Out</th><th>Late</th><th>Extra left</th><th></th></tr></thead><tbody id="hist"></tbody></table></div>
   <p class="mu">Records are stored in this browser only. Export a CSV regularly as a backup.</p>
 </div>
 </main>
@@ -140,6 +148,11 @@ function t12(t){if(!t)return "–";var a=t.split(":"),h=+a[0];return ((h+11)%12+
 function diff(r){return (r&&r.in&&r.out)?mins(r.out)-mins(r.in)-D.target:null}
 function leaveOn(d){return D.leaves.filter(function(l){return l.date===d}).reduce(function(a,l){return a+l.min},0)}
 function total(){var t=+D.opening||0;for(var k in D.days){var x=diff(D.days[k]);if(x!==null)t+=x}D.leaves.forEach(function(l){t-=l.min});return t}
+function running(){var m={},t=+D.opening||0,ks={};for(var k in D.days)ks[k]=1;D.leaves.forEach(function(l){ks[l.date]=1});Object.keys(ks).sort().forEach(function(k){var x=diff(D.days[k]);if(x!==null)t+=x;t-=leaveOn(k);m[k]=t});return m}
+function overall(){var o={days:0,per:0,base:0,late:0,early:0,extra:0,leave:0},st=mins(D.start||"09:00"),en=mins(D.end||"19:00");o.per=en-st-D.target;
+ for(var k in D.days){var r=D.days[k];if(r&&r.in&&r.out){var i=mins(r.in),u=mins(r.out);o.days++;o.base+=o.per;o.late+=Math.max(0,i-st);o.early+=Math.max(0,en-u);o.extra+=Math.max(0,u-en)+Math.max(0,st-i)}}
+ D.leaves.forEach(function(l){o.leave+=l.min});return o}
+function ln(a,v,c){return '<div class="stat"><span>'+a+'</span><b class="'+(c||"")+'">'+v+'</b></div>'}
 function range(from,to){var e=0,d=0,l=0;for(var k in D.days){if(k>=from&&k<=to){var x=diff(D.days[k]);if(x!==null){x>0?e+=x:d+=x}}}D.leaves.forEach(function(v){if(v.date>=from&&v.date<=to)l+=v.min});return {e:e,d:d,l:l,n:e+d-l}}
 function stats(r){return '<div class="stat"><span>Extra</span><b class="pos">'+fmt(r.e)+'</b></div><div class="stat"><span>Deficit</span><b class="neg">'+fmt(-r.d)+'</b></div><div class="stat"><span>Leave</span><b>'+fmt(r.l)+'</b></div><div class="stat"><span>Net</span><b class="'+cls(r.n)+'">'+fmt(r.n,1)+'</b></div>'}
 function render(){
@@ -164,17 +177,25 @@ function render(){
   var run=+D.opening||0,mh="";
   Object.keys(months).sort().forEach(function(m){var r=range(m+"-01",m+"-31");run+=r.n;mh="<tr><td>"+m+"</td><td class='pos'>"+fmt(r.e)+"</td><td class='neg'>"+fmt(-r.d)+"</td><td>"+fmt(r.l)+"</td><td class='"+cls(r.n)+"'>"+fmt(r.n,1)+"</td><td class='"+cls(run)+"'>"+fmt(run,1)+"</td></tr>"+mh});
   $("mtab").innerHTML=mh;
+  var rl=running(),o=overall(),tt=total(),op=+D.opening||0;
+  $("ov").textContent=fmt(tt,1);$("ov").className="big "+cls(tt);
+  $("ovl").innerHTML=ln("Saved from schedule ("+o.days+" days × "+fmt(o.per)+")",fmt(o.base,1),cls(o.base))+ln("Late arrival deducted","−"+fmt(o.late),o.late?"neg":"")+ln("Early leave deducted","−"+fmt(o.early),o.early?"neg":"")+ln("Extra time worked","+"+fmt(o.extra),o.extra?"pos":"")+ln("Leave deducted","−"+fmt(o.leave),o.leave?"neg":"")+(op?ln("Opening balance",fmt(op,1),cls(op)):"");
   var list=Object.keys(keys).filter(function(k){return f==="all"||k.slice(0,7)===f}).sort().reverse(),h="";
   list.forEach(function(k){var r=D.days[k]||{},x=diff(r),l=leaveOn(k);
-    h+="<tr><td>"+k+"</td><td>"+t12(r.in)+"</td><td>"+t12(r.out)+"</td><td>"+fm(lateM(r))+"</td><td>"+fm(earlyM(r))+"</td><td>"+(x===null?"–":fmt(x+D.target))+"</td><td class='"+(x===null?"":cls(x))+"'>"+(x===null?(r.in&&k<td?"<span class='neg'>logout missing</span>":"–"):fmt(x,1))+(l?" <span class='neg'>(leave "+fmt(l)+")</span>":"")+"</td><td>"+(r.in?"<button class='sec sm' data-e='"+k+"'>Edit</button> ":"")+"<button class='sec sm' data-d='"+k+"'>Delete</button></td></tr>"});
-  $("hist").innerHTML=h||"<tr><td colspan='8' class='mu'>No records yet.</td></tr>";
+    h+="<tr><td>"+k+"</td><td>"+t12(r.in)+"</td><td>"+t12(r.out)+"</td><td>"+fm(lateM(r))+"</td><td class='"+cls(rl[k])+"'><b>"+fmt(rl[k],1)+"</b>"+(x===null&&r.in&&k<td?" <span class='neg'>(logout missing)</span>":"")+(l?" <span class='neg'>(leave "+fmt(l)+")</span>":"")+"</td><td>"+(r.in?"<button class='sec sm' data-e='"+k+"'>Edit</button> ":"")+"<button class='sec sm' data-d='"+k+"'>Delete</button></td></tr>"});
+  $("hist").innerHTML=h||"<tr><td colspan='6' class='mu'>No records yet.</td></tr>";
 }
 $("bin").onclick=function(){var n=new Date(),k=iso(n);D.days[k]={in:hm(n),out:null};save();render()};
 $("bout").onclick=function(){var n=new Date(),k=iso(n);if(D.days[k]&&D.days[k].in){D.days[k].out=hm(n);save();render()}else{alert("No login found for today. Use Add or edit a day to fix it.")}};
-$("fs").onclick=function(){var d=$("fd").value,i=$("fi").value,o=$("fo").value;if(!d||!i||!o){alert("Please fill date, login and logout.");return}if(mins(o)<=mins(i)){alert("Logout must be after login.");return}
- D.days[d]={in:i,out:o};forceMonth=d.slice(0,7);save();render();
+$("fs").onclick=function(){var d=$("fd").value,i=$("fi").value,o=$("fo").value,m=$("fmsg");
+ if(!d||!i){alert("Please choose a date and a login time.");return}
+ if(o&&mins(o)<=mins(i)){var alt=mins(o)+720,at=pad(Math.floor(alt/60))+":"+pad(alt%60);
+  if(alt<1440&&alt>mins(i)&&confirm("Logout "+t12(o)+" is earlier than login "+t12(i)+". Did you mean "+t12(at)+"?")){o=at;$("fo").value=at}
+  else{alert("Logout must be after login. These boxes use 24-hour time, so 6:48 PM is 18:48.");return}}
+ D.days[d]={in:i,out:o||null};forceMonth=d.slice(0,7);save();render();
+ if(!o){m.textContent="Saved "+d+" with login only. Add the logout later; this day is not counted until then.";return}
  var r=D.days[d],x=diff(r),la=lateM(r),ea=earlyM(r);
- $("fmsg").innerHTML="Saved "+d+": worked "+fmt(mins(o)-mins(i))+", balance <b class='"+cls(x)+"'>"+fmt(x,1)+"</b>"+(la?", late by "+fmt(la):"")+(ea?", left early by "+fmt(ea):"")+". Showing "+d.slice(0,7)+" in the history below."};
+ m.innerHTML="Saved "+d+": worked "+fmt(mins(o)-mins(i))+", balance <b class='"+cls(x)+"'>"+fmt(x,1)+"</b>"+(la?", late by "+fmt(la):"")+(ea?", left early by "+fmt(ea):"")+". Showing "+d.slice(0,7)+" in the history below."};
 $("fd").onchange=function(){var r=D.days[this.value];$("fi").value=r&&r.in?r.in:(D.start||"09:00");$("fo").value=r&&r.out?r.out:(D.end||"19:00")};
 $("ls").onclick=function(){var d=$("ld").value,t=$("lt").value,m=t==="full"?D.target:t==="half"?Math.round(D.target/2):+$("lm").value;if(!d||!(m>0)){alert("Pick a date and a valid amount.");return}D.leaves.push({id:Date.now(),date:d,min:m,note:$("ln").value});forceMonth=d.slice(0,7);save();render();$("lmsg").textContent="Leave saved for "+d+". Showing "+d.slice(0,7)+" in the history below."};
 $("sv").onclick=function(){var t=+$("st").value;if(!(t>0)){alert("Target must be positive.");return}D.target=t;D.opening=+$("so").value||0;D.start=$("ss").value||"09:00";D.end=$("se").value||"19:00";save();render()};
@@ -191,7 +212,7 @@ $("bk").onclick=function(){saveFile("work-tracker-backup-"+iso(new Date())+".jso
 $("rb").onclick=function(){$("rf").click()};
 $("rf").onchange=function(e){var fl=e.target.files[0];if(!fl)return;var rd=new FileReader();rd.onload=function(){try{var p=JSON.parse(rd.result);if(!p.days)throw 0;if(confirm("Replace current data with this backup?")){D=clean(p);save();$("st").value=D.target;$("so").value=D.opening;render()}}catch(x){alert("Not a valid backup file.")}};rd.readAsText(fl);e.target.value=""};
 $("mf").onchange=render;
-$("st").value=D.target;$("so").value=D.opening;$("ss").value=D.start;$("se").value=D.end;$("fd").value=iso(new Date());$("ld").value=iso(new Date());
+$("st").value=D.target;$("so").value=D.opening;$("ss").value=D.start;$("se").value=D.end;var yd=new Date();yd.setDate(yd.getDate()-1);$("fd").value=iso(yd);$("fd").max=iso(new Date());$("ld").value=iso(new Date());
 setInterval(render,30000);boot();
 </script>
 </body>
