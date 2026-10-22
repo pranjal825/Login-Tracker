@@ -92,7 +92,7 @@ th{color:var(--mu);font-weight:600;font-size:12px}
   </div>
   <p class="mu">Default target is 9h 06m (546 min). The 9:00 AM–7:00 PM schedule gives +54 min per full day.</p>
   <div class="row"><button class="sec" id="sv">Save settings</button><button class="sec" id="ex">Export CSV (selected month)</button></div>
-  <div class="row" style="margin-top:10px"><button class="sec" id="bk">Backup all data (JSON)</button><button class="sec" id="rb">Restore backup</button><button class="sec" id="cc">Change sync code</button><button class="sec" id="rs" style="color:var(--neg)">Reset all</button></div>
+  <div class="row" style="margin-top:10px"><button class="sec" id="bk">Backup all data (JSON)</button><button class="sec" id="rb">Restore backup</button><button class="sec" id="rs" style="color:var(--neg)">Reset all</button></div>
   <input type="file" id="rf" accept=".json,application/json" hidden>
 </div>
 
@@ -111,48 +111,24 @@ th{color:var(--mu);font-weight:600;font-size:12px}
   <p class="mu">Records are stored in this browser only. Export a CSV regularly as a backup.</p>
 </div>
 </main>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
-var SB_URL="PASTE_YOUR_SUPABASE_URL",SB_KEY="PASTE_YOUR_SUPABASE_ANON_KEY",SYNC_CODE="",LOCAL="workTracker.v1",CODEKEY="workTracker.code";
+var LOCAL="workTracker.v1",BAK="workTracker.v1.bak";
 function blank(){return {days:{},leaves:[],target:546,opening:0,start:"09:00",end:"19:00"}}
 var forceMonth=null;
 function lateM(r){return r&&r.in?Math.max(0,mins(r.in)-mins(D.start||"09:00")):0}
 function earlyM(r){return r&&r.out?Math.max(0,mins(D.end||"19:00")-mins(r.out)):0}
 function fm(v){return v?"<span class='neg'>"+fmt(v)+"</span>":"–"}
-var D=blank(),sb=null,CODE="",VER=0,timer=null,saving=false,again=false,pend=null,ready=false;
+var D=blank();
+function clean(p){var o=Object.assign(blank(),(p&&typeof p==="object")?p:{});if(!o.days||typeof o.days!=="object"||Array.isArray(o.days))o.days={};if(!Array.isArray(o.leaves))o.leaves=[];o.target=+o.target>0?+o.target:546;o.opening=+o.opening||0;o.start=o.start||"09:00";o.end=o.end||"19:00";return o}
+function readKey(k){try{var s=localStorage.getItem(k);return s?JSON.parse(s):null}catch(e){return null}}
+function loadAll(){var p=readKey(LOCAL);if(!(p&&p.days))p=readKey(BAK);D=clean(p)}
 function setSync(t,bad){var e=$("sync");e.textContent=t;e.style.color=bad?"var(--neg)":""}
-function save(){if(!ready)return;setSync("Saving…");clearTimeout(pend);pend=setTimeout(push,400)}
-function push(){pend=null;if(!ready)return;if(saving){again=true;return}saving=true;
- sb.rpc("sync_save",{p_code:CODE,p_data:JSON.parse(JSON.stringify(D)),p_ver:VER}).then(function(r){saving=false;
-  if(r.error){setSync("Not saved: "+r.error.message,1)}
-  else if(r.data===null){pull(true)}
-  else{VER=r.data;setSync("All changes saved");if(again){again=false;push()}}},function(){saving=false;setSync("Not saved (offline?)",1)})}
-function apply(d,v){D=Object.assign(blank(),d);VER=v;$("st").value=D.target;$("so").value=D.opening;$("ss").value=D.start;$("se").value=D.end;render()}
-function pull(conflict){sb.rpc("sync_load",{p_code:CODE}).then(function(r){
-  if(r.error){setSync("Could not load: "+r.error.message,1);return}
-  var row=r.data,d=row.data||{};
-  if(conflict){again=false;apply(d,row.version);setSync("Updated from another device");alert("This data was changed on another device. The latest version has been loaded. If your last change is missing, please enter it again.");return}
-  if(!ready){
-    if(d.days){apply(d,row.version);ready=true;setSync("All changes saved")}
-    else{var c=null;try{c=JSON.parse(localStorage.getItem(LOCAL)||"null")}catch(e){}
-      var use=!!(c&&c.days&&Object.keys(c.days).length&&confirm("Import the records saved earlier in this browser?"));
-      apply(use?c:{},row.version);ready=true;save()}
-    timer=setInterval(function(){pull(false)},20000);return}
-  if(row.version!==VER&&!saving&&!pend){apply(d,row.version);setSync("Updated from another device")}
- },function(){setSync("Could not reach the server.",1)})}
+function save(){try{var cur=localStorage.getItem(LOCAL);if(cur)localStorage.setItem(BAK,cur);localStorage.setItem(LOCAL,JSON.stringify(D));setSync("Saved on this device at "+hm(new Date()))}catch(e){setSync("Could not save in this browser. Use Backup (JSON) now and check that site data is allowed for this page.",1)}}
+function applyUI(){$("st").value=D.target;$("so").value=D.opening;$("ss").value=D.start;$("se").value=D.end;render()}
 function boot(){
- if(SB_URL.indexOf("PASTE")===0||SB_KEY.indexOf("PASTE")===0){setSync("Setup needed: the Supabase URL and anon key in index.html have not been replaced yet.",1);return}
- if(!window.supabase){if(window.sbTried){setSync("The sync library could not be loaded. Your network may be blocking cdn.jsdelivr.net or unpkg.com.",1);return}
-  window.sbTried=1;var sc=document.createElement("script");sc.src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.js";sc.onload=boot;sc.onerror=boot;document.head.appendChild(sc);return}
- CODE=SYNC_CODE;
- if(!CODE){try{CODE=localStorage.getItem(CODEKEY)||""}catch(e){}}
- if(!CODE){CODE=(prompt("Enter your sync code (at least 12 characters). Use the same code on every device.")||"").trim();
-  if(CODE.length<12){setSync("A sync code of at least 12 characters is needed. Reload the page to enter it.",1);return}
-  try{localStorage.setItem(CODEKEY,CODE)}catch(e){}}
- sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
- setSync("Loading…");pull(false)}
-document.addEventListener("visibilitychange",function(){if(ready&&!document.hidden)pull(false)});
-$("cc").onclick=function(){if(confirm("Forget the sync code on this device and enter a new one?")){try{localStorage.removeItem(CODEKEY)}catch(e){}location.reload()}};
+ try{localStorage.setItem("wt.test","1");localStorage.removeItem("wt.test")}catch(e){setSync("This browser is blocking saving (private mode or blocked site data). Records will not be kept.",1)}
+ loadAll();applyUI();
+ window.addEventListener("storage",function(e){if(e.key===LOCAL){loadAll();applyUI()}})}
 function $(i){return document.getElementById(i)}
 function pad(n){return (n<10?"0":"")+n}
 function iso(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
@@ -190,11 +166,11 @@ function render(){
   $("mtab").innerHTML=mh;
   var list=Object.keys(keys).filter(function(k){return f==="all"||k.slice(0,7)===f}).sort().reverse(),h="";
   list.forEach(function(k){var r=D.days[k]||{},x=diff(r),l=leaveOn(k);
-    h+="<tr><td>"+k+"</td><td>"+t12(r.in)+"</td><td>"+t12(r.out)+"</td><td>"+fm(lateM(r))+"</td><td>"+fm(earlyM(r))+"</td><td>"+(x===null?"–":fmt(x+D.target))+"</td><td class='"+(x===null?"":cls(x))+"'>"+(x===null?"–":fmt(x,1))+(l?" <span class='neg'>(leave "+fmt(l)+")</span>":"")+"</td><td>"+(r.in?"<button class='sec sm' data-e='"+k+"'>Edit</button> ":"")+"<button class='sec sm' data-d='"+k+"'>Delete</button></td></tr>"});
+    h+="<tr><td>"+k+"</td><td>"+t12(r.in)+"</td><td>"+t12(r.out)+"</td><td>"+fm(lateM(r))+"</td><td>"+fm(earlyM(r))+"</td><td>"+(x===null?"–":fmt(x+D.target))+"</td><td class='"+(x===null?"":cls(x))+"'>"+(x===null?(r.in&&k<td?"<span class='neg'>logout missing</span>":"–"):fmt(x,1))+(l?" <span class='neg'>(leave "+fmt(l)+")</span>":"")+"</td><td>"+(r.in?"<button class='sec sm' data-e='"+k+"'>Edit</button> ":"")+"<button class='sec sm' data-d='"+k+"'>Delete</button></td></tr>"});
   $("hist").innerHTML=h||"<tr><td colspan='8' class='mu'>No records yet.</td></tr>";
 }
 $("bin").onclick=function(){var n=new Date(),k=iso(n);D.days[k]={in:hm(n),out:null};save();render()};
-$("bout").onclick=function(){var n=new Date(),k=iso(n);if(D.days[k]){D.days[k].out=hm(n);save();render()}};
+$("bout").onclick=function(){var n=new Date(),k=iso(n);if(D.days[k]&&D.days[k].in){D.days[k].out=hm(n);save();render()}else{alert("No login found for today. Use Add or edit a day to fix it.")}};
 $("fs").onclick=function(){var d=$("fd").value,i=$("fi").value,o=$("fo").value;if(!d||!i||!o){alert("Please fill date, login and logout.");return}if(mins(o)<=mins(i)){alert("Logout must be after login.");return}
  D.days[d]={in:i,out:o};forceMonth=d.slice(0,7);save();render();
  var r=D.days[d],x=diff(r),la=lateM(r),ea=earlyM(r);
@@ -213,7 +189,7 @@ function saveFile(name,text){var type=name.slice(-3)==="csv"?"text/csv":"applica
  var a=document.createElement("a");a.href="data:"+type+";charset=utf-8,"+encodeURIComponent(text);a.download=name;document.body.appendChild(a);a.click();a.remove()}
 $("bk").onclick=function(){saveFile("work-tracker-backup-"+iso(new Date())+".json",JSON.stringify(D,null,1))};
 $("rb").onclick=function(){$("rf").click()};
-$("rf").onchange=function(e){var fl=e.target.files[0];if(!fl)return;var rd=new FileReader();rd.onload=function(){try{var p=JSON.parse(rd.result);if(!p.days)throw 0;if(confirm("Replace current data with this backup?")){D=Object.assign(blank(),p);save();$("st").value=D.target;$("so").value=D.opening;render()}}catch(x){alert("Not a valid backup file.")}};rd.readAsText(fl);e.target.value=""};
+$("rf").onchange=function(e){var fl=e.target.files[0];if(!fl)return;var rd=new FileReader();rd.onload=function(){try{var p=JSON.parse(rd.result);if(!p.days)throw 0;if(confirm("Replace current data with this backup?")){D=clean(p);save();$("st").value=D.target;$("so").value=D.opening;render()}}catch(x){alert("Not a valid backup file.")}};rd.readAsText(fl);e.target.value=""};
 $("mf").onchange=render;
 $("st").value=D.target;$("so").value=D.opening;$("ss").value=D.start;$("se").value=D.end;$("fd").value=iso(new Date());$("ld").value=iso(new Date());
 setInterval(render,30000);boot();
