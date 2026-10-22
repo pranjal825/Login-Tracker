@@ -14,24 +14,22 @@ A simple, mobile-friendly working hours tracker. One HTML file and no build step
 - Full JSON backup and restore
 - Light and dark mode
 
-## Accounts, sync and single-session login
+## Sync without a login page
 
-The app uses [Supabase](https://supabase.com) (free tier) for email/password accounts and cloud storage.
+The app syncs your records through a free [Supabase](https://supabase.com) project. There is no email or password screen. Instead, your data is stored under a **sync code** that only you know.
 
-- Your records are saved to your account, so every device sees the same data.
-- Only one session per account is active. Signing in on a new device or tab signs the previous one out automatically (within about 15 seconds, or immediately on its next save).
-- The server rejects saves from an old session, so a signed-out device cannot overwrite newer data.
-- Row Level Security means each user can only read their own row.
+- Choose a long, hard-to-guess code (at least 12 characters), for example a few random words and numbers.
+- Either leave `SYNC_CODE` empty in `index.html` and type the code once per device when asked, or put it in `SYNC_CODE` to skip the prompt. Anything written in `index.html` is visible to anyone who opens the page source, so the prompt option is safer.
+- Anyone who knows your code can read and edit your records. Nobody can read the table directly.
+- If two devices edit at once, the later one is told the data changed and loads the latest version, so records are never silently overwritten.
+- Other devices pick up changes within about 20 seconds, or immediately when you switch back to the tab.
 
-### Setup (about 10 minutes)
+### Setup
 1. Create a free project at https://supabase.com.
 2. Open **SQL Editor**, paste the contents of `supabase-setup.sql`, and run it.
-3. Open **Project Settings -> API** and copy the **Project URL** and the **anon public** key.
-4. In `index.html`, replace `PASTE_YOUR_SUPABASE_URL` and `PASTE_YOUR_SUPABASE_ANON_KEY` near the top of the script. The anon key is designed to be public; never use the `service_role` key.
-5. Optional: in **Authentication -> Providers -> Email**, turn off "Confirm email" if you do not want a confirmation email on sign-up. To stop others creating accounts, turn off sign-ups after you create yours (**Authentication -> Sign In / Providers**).
-6. Deploy (see below). Add your site URL under **Authentication -> URL Configuration**.
-
-The first time you sign in on a browser that has records from the older offline version, the app offers to import them into your account.
+3. Open **Project Settings -> API Keys** and copy the Project URL and the anon (or publishable) key.
+4. In `index.html`, replace `PASTE_YOUR_SUPABASE_URL` and `PASTE_YOUR_SUPABASE_ANON_KEY` near the top of the script. Never use the `service_role` or secret key.
+5. Deploy (see below), open the site, and enter your sync code.
 
 ## Run locally
 

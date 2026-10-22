@@ -33,14 +33,9 @@ th{color:var(--mu);font-weight:600;font-size:12px}
 </style>
 </head>
 <body>
-<div id="auth" hidden><main><div class="card"><h1>My Work Tracker</h1><p class="sub">Sign in to open your records. Only one device can be signed in to an account at a time.</p>
-<label>Email</label><input type="email" id="ae" autocomplete="username"><div style="height:10px"></div>
-<label>Password</label><input type="password" id="ap" autocomplete="current-password">
-<div class="row" style="margin-top:12px"><button id="asi">Sign in</button><button class="sec" id="asu">Create account</button></div>
-<p id="amsg" class="mu" style="margin-top:10px"></p></div></main></div>
-<main id="app" hidden>
-<div class="row" style="align-items:center;flex-wrap:nowrap"><h1 style="flex:1 1 auto">My Work Tracker</h1><button class="sec sm" id="lo" style="flex:0 0 auto">Sign out</button></div>
-<div class="mu" id="who"></div><div class="mu" id="sync" style="margin-bottom:8px"></div>
+<main id="app">
+<h1>My Work Tracker</h1>
+<div class="mu" id="sync" style="margin-bottom:8px"></div>
 <p class="sub" id="dateLine"></p>
 
 <div class="card">
@@ -97,7 +92,7 @@ th{color:var(--mu);font-weight:600;font-size:12px}
   </div>
   <p class="mu">Default target is 9h 06m (546 min). The 9:00 AM–7:00 PM schedule gives +54 min per full day.</p>
   <div class="row"><button class="sec" id="sv">Save settings</button><button class="sec" id="ex">Export CSV (selected month)</button></div>
-  <div class="row" style="margin-top:10px"><button class="sec" id="bk">Backup all data (JSON)</button><button class="sec" id="rb">Restore backup</button><button class="sec" id="rs" style="color:var(--neg)">Reset all</button></div>
+  <div class="row" style="margin-top:10px"><button class="sec" id="bk">Backup all data (JSON)</button><button class="sec" id="rb">Restore backup</button><button class="sec" id="cc">Change sync code</button><button class="sec" id="rs" style="color:var(--neg)">Reset all</button></div>
   <input type="file" id="rf" accept=".json,application/json" hidden>
 </div>
 
@@ -118,51 +113,46 @@ th{color:var(--mu);font-weight:600;font-size:12px}
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
-var SB_URL="https://hpqrcqncshvorgdvwbem.supabase.co",SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhwcXJjcW5jc2h2b3JnZHZ3YmVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1NjkzMjgsImV4cCI6MjEwODE0NTMyOH0.y4kLM0qyO3cOZIqtQL7H3Oc1j3G6OUptFNP38AQVcmY",LOCAL="workTracker.v1";
+var SB_URL="PASTE_YOUR_SUPABASE_URL",SB_KEY="PASTE_YOUR_SUPABASE_ANON_KEY",SYNC_CODE="",LOCAL="workTracker.v1",CODEKEY="workTracker.code";
 function blank(){return {days:{},leaves:[],target:546,opening:0,start:"09:00",end:"19:00"}}
 var forceMonth=null;
 function lateM(r){return r&&r.in?Math.max(0,mins(r.in)-mins(D.start||"09:00")):0}
 function earlyM(r){return r&&r.out?Math.max(0,mins(D.end||"19:00")-mins(r.out)):0}
 function fm(v){return v?"<span class='neg'>"+fmt(v)+"</span>":"–"}
-var D=blank(),sb=null,SID=null,timer=null,saving=false,again=false,pend=null;
-function uid(){return (window.crypto&&crypto.randomUUID)?crypto.randomUUID():Date.now()+"-"+Math.random().toString(36).slice(2)}
+var D=blank(),sb=null,CODE="",VER=0,timer=null,saving=false,again=false,pend=null,ready=false;
 function setSync(t,bad){var e=$("sync");e.textContent=t;e.style.color=bad?"var(--neg)":""}
-function save(){if(!SID)return;setSync("Saving…");clearTimeout(pend);pend=setTimeout(push,400)}
-function push(){if(!sb||!SID)return;if(saving){again=true;return}saving=true;
- sb.rpc("save_data",{p_session:SID,p_data:JSON.parse(JSON.stringify(D))}).then(function(r){saving=false;
-  if(r.error){setSync("Not saved: "+r.error.message,1)}else if(r.data===false){kicked()}else{setSync("All changes saved")}
-  if(again){again=false;push()}},function(){saving=false;setSync("Not saved (offline?)",1)})}
-function showAuth(msg){$("app").hidden=true;$("auth").hidden=false;$("amsg").textContent=msg||""}
-function kicked(){clearInterval(timer);SID=null;D=blank();if(sb)sb.auth.signOut();showAuth("You were signed out because this account was opened on another device or tab.")}
+function save(){if(!ready)return;setSync("Saving…");clearTimeout(pend);pend=setTimeout(push,400)}
+function push(){pend=null;if(!ready)return;if(saving){again=true;return}saving=true;
+ sb.rpc("sync_save",{p_code:CODE,p_data:JSON.parse(JSON.stringify(D)),p_ver:VER}).then(function(r){saving=false;
+  if(r.error){setSync("Not saved: "+r.error.message,1)}
+  else if(r.data===null){pull(true)}
+  else{VER=r.data;setSync("All changes saved");if(again){again=false;push()}}},function(){saving=false;setSync("Not saved (offline?)",1)})}
+function apply(d,v){D=Object.assign(blank(),d);VER=v;$("st").value=D.target;$("so").value=D.opening;$("ss").value=D.start;$("se").value=D.end;render()}
+function pull(conflict){sb.rpc("sync_load",{p_code:CODE}).then(function(r){
+  if(r.error){setSync("Could not load: "+r.error.message,1);return}
+  var row=r.data,d=row.data||{};
+  if(conflict){again=false;apply(d,row.version);setSync("Updated from another device");alert("This data was changed on another device. The latest version has been loaded. If your last change is missing, please enter it again.");return}
+  if(!ready){
+    if(d.days){apply(d,row.version);ready=true;setSync("All changes saved")}
+    else{var c=null;try{c=JSON.parse(localStorage.getItem(LOCAL)||"null")}catch(e){}
+      var use=!!(c&&c.days&&Object.keys(c.days).length&&confirm("Import the records saved earlier in this browser?"));
+      apply(use?c:{},row.version);ready=true;save()}
+    timer=setInterval(function(){pull(false)},20000);return}
+  if(row.version!==VER&&!saving&&!pend){apply(d,row.version);setSync("Updated from another device")}
+ },function(){setSync("Could not reach the server.",1)})}
 function boot(){
- if(SB_URL.indexOf("PASTE")===0||SB_KEY.indexOf("PASTE")===0){showAuth("Setup needed: the Supabase URL and anon key in index.html have not been replaced yet. Edit the first line of the script, save, and upload the file again.");return}
- if(!window.supabase){if(window.sbTried){showAuth("The login library could not be loaded. Your network may be blocking cdn.jsdelivr.net or unpkg.com. Try another network or ask IT to allow them.");return}
+ if(SB_URL.indexOf("PASTE")===0||SB_KEY.indexOf("PASTE")===0){setSync("Setup needed: the Supabase URL and anon key in index.html have not been replaced yet.",1);return}
+ if(!window.supabase){if(window.sbTried){setSync("The sync library could not be loaded. Your network may be blocking cdn.jsdelivr.net or unpkg.com.",1);return}
   window.sbTried=1;var sc=document.createElement("script");sc.src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.js";sc.onload=boot;sc.onerror=boot;document.head.appendChild(sc);return}
- sb=supabase.createClient(SB_URL,SB_KEY);
- sb.auth.getSession().then(function(r){r.data.session?enter(r.data.session.user):showAuth("")},function(){showAuth("Could not reach the server.")})}
-function enter(user){
- SID=uid();$("amsg").textContent="";
- sb.rpc("claim_session",{p_session:SID}).then(function(r){
-  if(r.error)throw r.error;
-  return sb.from("tracker_data").select("data").maybeSingle()}).then(function(r){
-  if(r.error)throw r.error;
-  var d=r.data&&r.data.data,fresh=!(d&&d.days);
-  D=fresh?blank():Object.assign(blank(),d);
-  if(fresh){try{var s=JSON.parse(localStorage.getItem(LOCAL)||"null");if(s&&s.days&&Object.keys(s.days).length&&confirm("Import the records saved earlier in this browser into your account?"))D=Object.assign(blank(),s)}catch(e){}}
-  $("who").textContent=user.email;$("st").value=D.target;$("so").value=D.opening;$("ss").value=D.start;$("se").value=D.end;$("ap").value="";
-  $("auth").hidden=true;$("app").hidden=false;render();
-  if(fresh){save()}else setSync("All changes saved");
-  clearInterval(timer);timer=setInterval(check,15000)
- }).catch(function(e){SID=null;showAuth((e&&e.message)||"Sign-in failed.")})}
-function check(){if(!sb||!SID)return;sb.from("tracker_data").select("session_id").maybeSingle().then(function(r){if(!r.error&&r.data&&r.data.session_id!==SID)kicked()})}
-document.addEventListener("visibilitychange",function(){if(!document.hidden)check()});
-function creds(){return {email:$("ae").value.trim(),password:$("ap").value}}
-$("asi").onclick=function(){var c=creds();if(!sb){boot();return}if(!c.email||!c.password){$("amsg").textContent="Enter your email and password.";return}
- sb.auth.signInWithPassword(c).then(function(r){if(r.error)$("amsg").textContent=r.error.message;else enter(r.data.user)})};
-$("asu").onclick=function(){var c=creds();if(!sb){boot();return}if(!c.email||c.password.length<6){$("amsg").textContent="Enter an email and a password of at least 6 characters.";return}
- sb.auth.signUp(c).then(function(r){if(r.error)$("amsg").textContent=r.error.message;else if(r.data.session)enter(r.data.user);else $("amsg").textContent="Account created. Check your email to confirm it, then sign in."})};
-$("lo").onclick=function(){clearInterval(timer);clearTimeout(pend);var s=SID;SID=null;
- sb.rpc("save_data",{p_session:s,p_data:D}).then(function(){return sb.auth.signOut()}).then(function(){D=blank();showAuth("You have been signed out.")})};
+ CODE=SYNC_CODE;
+ if(!CODE){try{CODE=localStorage.getItem(CODEKEY)||""}catch(e){}}
+ if(!CODE){CODE=(prompt("Enter your sync code (at least 12 characters). Use the same code on every device.")||"").trim();
+  if(CODE.length<12){setSync("A sync code of at least 12 characters is needed. Reload the page to enter it.",1);return}
+  try{localStorage.setItem(CODEKEY,CODE)}catch(e){}}
+ sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
+ setSync("Loading…");pull(false)}
+document.addEventListener("visibilitychange",function(){if(ready&&!document.hidden)pull(false)});
+$("cc").onclick=function(){if(confirm("Forget the sync code on this device and enter a new one?")){try{localStorage.removeItem(CODEKEY)}catch(e){}location.reload()}};
 function $(i){return document.getElementById(i)}
 function pad(n){return (n<10?"0":"")+n}
 function iso(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
