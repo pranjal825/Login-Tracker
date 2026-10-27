@@ -30,6 +30,10 @@ table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--bd);white-space:nowrap}
 th{color:var(--mu);font-weight:600;font-size:12px}
 .stat{display:flex;justify-content:space-between;padding:5px 0;font-size:15px}
+footer{max-width:720px;margin:0 auto;padding:16px;text-align:center;color:var(--mu);font-size:14px}
+html,body{overflow-x:hidden}
+body{width:100%}
+.card{min-width:0;overflow:hidden}
 </style>
 </head>
 <body>
@@ -215,10 +219,9 @@ $("mf").onchange=render;
 $("st").value=D.target;$("so").value=D.opening;$("ss").value=D.start;$("se").value=D.end;var yd=new Date();yd.setDate(yd.getDate()-1);$("fd").value=iso(yd);$("fd").max=iso(new Date());$("ld").value=iso(new Date());
 setInterval(render,30000);boot();
 </script>
-
  <footer>
   Crafted with love ❤️ in Noida.<br>
-  Pranjal Dwivedi.
+ By Pranjal Dwivedi.
 </footer>
 </body>
 </html>
