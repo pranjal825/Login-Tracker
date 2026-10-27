@@ -122,6 +122,10 @@ body{width:100%}
   <div class="scroll"><table><thead><tr><th>Date</th><th>In</th><th>Out</th><th>Late</th><th>Extra left</th><th></th></tr></thead><tbody id="hist"></tbody></table></div>
   <p class="mu">Records are stored in this browser only. Export a CSV regularly as a backup.</p>
 </div>
+<div class="card" style="text-align:center">
+  Crafted with love ❤️ in Noida.<br>
+  Pranjal Dwivedi.
+</div>
 </main>
 <script>
 var LOCAL="workTracker.v1",BAK="workTracker.v1.bak";
@@ -219,9 +223,5 @@ $("mf").onchange=render;
 $("st").value=D.target;$("so").value=D.opening;$("ss").value=D.start;$("se").value=D.end;var yd=new Date();yd.setDate(yd.getDate()-1);$("fd").value=iso(yd);$("fd").max=iso(new Date());$("ld").value=iso(new Date());
 setInterval(render,30000);boot();
 </script>
- <footer>
-  Crafted with love ❤️ in Noida.<br>
- By Pranjal Dwivedi.
-</footer>
 </body>
 </html>
